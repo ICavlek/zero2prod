@@ -20,10 +20,13 @@ async fn spawn_app() -> (TestApp, DatabaseSettings) {
     let connection_pool = configure_database(&configuration.database).await;
     let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
     let _ = tokio::spawn(server);
-    (TestApp {
-        address,
-        db_pool: connection_pool,
-    }, configuration.database)
+    (
+        TestApp {
+            address,
+            db_pool: connection_pool,
+        },
+        configuration.database,
+    )
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
