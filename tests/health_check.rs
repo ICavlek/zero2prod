@@ -11,7 +11,7 @@ pub struct TestApp {
     pub db_pool: PgPool,
 }
 
-async fn spawn_app() -> TestApp {
+async fn spawn_app() -> (TestApp, DatabaseSettings) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port");
     let port = listener.local_addr().unwrap().port();
     let address = format!("http://127.0.0.1:{}", port);
@@ -20,10 +20,10 @@ async fn spawn_app() -> TestApp {
     let connection_pool = configure_database(&configuration.database).await;
     let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
     let _ = tokio::spawn(server);
-    TestApp {
+    (TestApp {
         address,
         db_pool: connection_pool,
-    }
+    }, configuration.database)
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -44,9 +44,19 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     connection_pool
 }
 
+pub async fn drop_database(config: &DatabaseSettings) {
+    let mut connection = PgConnection::connect(&config.connection_string_without_db())
+        .await
+        .expect("Failed to connect to Postgres");
+    connection
+        .execute(format!(r#"DROP DATABASE "{}" WITH (FORCE);"#, config.database_name).as_str())
+        .await
+        .expect("Failed to drop database");
+}
+
 #[tokio::test]
 async fn health_check_works() {
-    let app = spawn_app().await;
+    let (app, database_config) = spawn_app().await;
     let client = reqwest::Client::new();
     let response = client
         .get(&format!("{}/health_check", &app.address))
@@ -55,11 +65,12 @@ async fn health_check_works() {
         .expect("Failed to execute request.");
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length());
+    drop_database(&database_config).await;
 }
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let app = spawn_app().await;
+    let (app, database_config) = spawn_app().await;
     let client = reqwest::Client::new();
 
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
@@ -78,11 +89,12 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .expect("Failed to fetch saved subscription");
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
+    drop_database(&database_config).await;
 }
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let app = spawn_app().await;
+    let (app, database_config) = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -104,4 +116,5 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
             error_message
         );
     }
+    drop_database(&database_config).await;
 }
