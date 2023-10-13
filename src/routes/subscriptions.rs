@@ -16,7 +16,7 @@ pub struct FormData {
 pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
     let name = SubscriberName::parse(form.name)?;
     let email = SubscriberEmail::parse(form.email)?;
-    Ok(NewSubscriber{ email, name })
+    Ok(NewSubscriber { email, name })
 }
 
 #[tracing::instrument(
