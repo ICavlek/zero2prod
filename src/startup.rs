@@ -1,12 +1,14 @@
 use std::net::TcpListener;
 
 use crate::routes::{health_check, subscribe};
-use actix_web::{dev::Server, web, App, HttpServer};
+use crate::email_client::EmailClient;
+use actix_web::{dev::Server, web, web::Data, App, HttpServer};
 use sqlx::PgPool;
 use tracing_actix_web::TracingLogger;
 
-pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Error> {
+pub fn run(listener: TcpListener, db_pool: PgPool, email_client: EmailClient) -> Result<Server, std::io::Error> {
     let db_pool = web::Data::new(db_pool);
+    let email_client = Data::new(email_client);
     let server = HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
