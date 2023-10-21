@@ -27,9 +27,10 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub db_settings: DatabaseSettings,
 }
 
-pub async fn spawn_app() -> (TestApp, DatabaseSettings) {
+pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
     let configuration = {
@@ -45,13 +46,12 @@ pub async fn spawn_app() -> (TestApp, DatabaseSettings) {
         .expect("Failed to build application.");
     let address = format!("http://127.0.0.1:{}", application.port());
     let _ = tokio::spawn(application.run_until_stopped());
-    (
-        TestApp {
-            address,
-            db_pool: get_connection_pool(&configuration.database),
-        },
-        configuration.database,
-    )
+
+    TestApp {
+        address,
+        db_pool: get_connection_pool(&configuration.database),
+        db_settings: configuration.database,
+    }
 }
 
 async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -72,12 +72,18 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
     connection_pool
 }
 
-pub async fn drop_database(config: &DatabaseSettings) {
-    let mut connection = PgConnection::connect_with(&config.without_db())
+pub async fn drop_database(db_settings: &DatabaseSettings) {
+    let mut connection = PgConnection::connect_with(&db_settings.without_db())
         .await
         .expect("Failed to connect to Postgres");
     connection
-        .execute(format!(r#"DROP DATABASE "{}" WITH (FORCE);"#, config.database_name).as_str())
+        .execute(
+            format!(
+                r#"DROP DATABASE "{}" WITH (FORCE);"#,
+                db_settings.database_name
+            )
+            .as_str(),
+        )
         .await
         .expect("Failed to drop database");
 }

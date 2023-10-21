@@ -2,7 +2,7 @@ use crate::helpers::{drop_database, spawn_app};
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
-    let (app, database_config) = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
 
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
@@ -21,12 +21,12 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
         .expect("Failed to fetch saved subscription");
     assert_eq!(saved.email, "ursula_le_guin@gmail.com");
     assert_eq!(saved.name, "le guin");
-    drop_database(&database_config).await;
+    drop_database(&app.db_settings).await;
 }
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_data_is_missing() {
-    let (app, database_config) = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -48,12 +48,12 @@ async fn subscribe_returns_a_400_when_data_is_missing() {
             error_message
         );
     }
-    drop_database(&database_config).await;
+    drop_database(&app.db_settings).await;
 }
 
 #[tokio::test]
 async fn subscribe_returns_a_400_when_fields_are_present_but_empty() {
-    let (app, database_config) = spawn_app().await;
+    let app = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
@@ -78,5 +78,5 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_empty() {
         )
     }
 
-    drop_database(&database_config).await;
+    drop_database(&app.db_settings).await;
 }
