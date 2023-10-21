@@ -1,6 +1,7 @@
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+use wiremock::MockServer;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings},
     startup::{get_connection_pool, Application},
@@ -28,6 +29,7 @@ pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
     pub db_settings: DatabaseSettings,
+    pub email_server: MockServer,
 }
 
 impl TestApp {
@@ -44,6 +46,7 @@ impl TestApp {
 
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
+    let email_server = MockServer::start().await;
 
     let configuration = {
         let mut c = get_configuration().expect("Failed to read configuration.");
@@ -63,6 +66,7 @@ pub async fn spawn_app() -> TestApp {
         address,
         db_pool: get_connection_pool(&configuration.database),
         db_settings: configuration.database,
+        email_server,
     }
 }
 
