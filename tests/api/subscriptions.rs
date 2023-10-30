@@ -116,4 +116,5 @@ async fn subscribe_sends_a_confirmation_email_with_a_link() {
     let text_link = get_link(&body["TextBody"].as_str().unwrap());
 
     assert_eq!(html_link, text_link);
+    drop_database(&app.db_settings).await;
 }
