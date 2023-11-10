@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
-use rand::{thread_rng, distributions::Alphanumeric, Rng};
+use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -46,20 +46,25 @@ pub async fn subscribe(
     };
     let subscriber_id = match insert_subscriber(&pool, &new_subscriber).await {
         Ok(subscriber_id) => subscriber_id,
-        Err(_) => return HttpResponse::InternalServerError().finish()
+        Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     let subscription_token = generate_subscription_token();
 
     if store_token(&pool, subscriber_id, &subscription_token)
         .await
-        .is_err() 
+        .is_err()
     {
         return HttpResponse::InternalServerError().finish();
     }
 
-    if send_confirmation_email(&email_client, new_subscriber, &base_url.0, "mytoken")
-        .await
-        .is_err()
+    if send_confirmation_email(
+        &email_client,
+        new_subscriber,
+        &base_url.0,
+        &subscription_token,
+    )
+    .await
+    .is_err()
     {
         return HttpResponse::InternalServerError().finish();
     }
@@ -107,8 +112,7 @@ pub async fn send_confirmation_email(
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format!(
         "{}/subscriptions/confirm?subscription_token={}",
-        base_url,
-        subscription_token
+        base_url, subscription_token
     );
 
     let html_body = &format!(
