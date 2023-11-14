@@ -6,6 +6,4 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     create_unconfirmed_subscriber(&app).await;
 }
 
-async fn create_unconfirmed_subscriber(_app: &TestApp) {
-
-}
+async fn create_unconfirmed_subscriber(_app: &TestApp) {}

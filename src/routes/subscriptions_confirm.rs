@@ -12,7 +12,10 @@ pub struct Parameters {
 }
 
 #[tracing::instrument(name = "Confirm a pending subscriber", skip(parameters, pool))]
-pub async fn confirm(parameters: web::Query<Parameters>, pool: web::Data<PgPool>) -> Result<HttpResponse, ConfirmationError> {
+pub async fn confirm(
+    parameters: web::Query<Parameters>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, ConfirmationError> {
     let subscriber_id = get_subscriber_id_from_token(&pool, &parameters.subscription_token)
         .await
         .context("Failed to retrieve the subscriber id associated with the provided token.")?
