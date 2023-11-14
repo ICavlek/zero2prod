@@ -1,6 +1,9 @@
-use wiremock::{Mock, matchers::{method, path, any}, ResponseTemplate};
+use wiremock::{
+    matchers::{any, method, path},
+    Mock, ResponseTemplate,
+};
 
-use crate::helpers::{spawn_app, TestApp, drop_database};
+use crate::helpers::{drop_database, spawn_app, TestApp};
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
