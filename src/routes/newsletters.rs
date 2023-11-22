@@ -6,12 +6,12 @@ pub async fn publish_newsletter(_body: web::Json<BodyData>) -> HttpResponse {
 
 #[derive(serde::Deserialize)]
 pub struct BodyData {
-    _title: String,
-    _content: Content,
+    title: String,
+    content: Content,
 }
 
 #[derive(serde::Deserialize)]
 pub struct Content {
-    _html: String,
-    _text: String,
+    html: String,
+    text: String,
 }
