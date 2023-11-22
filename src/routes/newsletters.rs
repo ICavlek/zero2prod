@@ -1,7 +1,7 @@
 use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use sqlx::PgPool;
 
-use crate::routes::error_chain_fmt;
+use crate::{email_client::EmailClient, routes::error_chain_fmt};
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -24,10 +24,21 @@ impl ResponseError for PublishError {
 }
 
 pub async fn publish_newsletter(
-    _body: web::Json<BodyData>,
+    body: web::Json<BodyData>,
     pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> Result<HttpResponse, PublishError> {
-    let _subscribers = get_confirmed_subscribers(&pool).await?;
+    let subscribers = get_confirmed_subscribers(&pool).await?;
+    for subscriber in subscribers {
+        email_client
+            .send_email(
+                subscriber.email,
+                &body.title,
+                &body.content.html,
+                &body.content.text,
+            )
+            .await?;
+    }
     Ok(HttpResponse::Ok().finish())
 }
 
