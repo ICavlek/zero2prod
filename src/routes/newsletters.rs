@@ -86,12 +86,7 @@ async fn get_confirmed_subscribers(
     // forces them to handle the subtler mapping error.
     // See http://sled.rs/errors.html for a deep-dive about this technique.
 ) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    struct Row {
-        email: String,
-    }
-
-    let rows = sqlx::query_as!(
-        Row,
+    let rows = sqlx::query!(
         r#"
         SELECT email
         FROM subscriptions
