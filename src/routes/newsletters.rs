@@ -84,8 +84,8 @@ pub async fn publish_newsletter(
 }
 
 struct Credentials {
-    username: String,
-    password: Secret<String>,
+    _username: String,
+    _password: Secret<String>,
 }
 
 fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
@@ -114,8 +114,8 @@ fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Erro
         .to_string();
 
     Ok(Credentials {
-        username,
-        password: Secret::new(password),
+        _username: username,
+        _password: Secret::new(password),
     })
 }
 
