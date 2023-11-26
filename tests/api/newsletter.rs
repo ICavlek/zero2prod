@@ -94,7 +94,6 @@ async fn create_confirmed_subscriber(app: &TestApp) {
 #[tokio::test]
 async fn newsletters_returns_400_for_invalid_data() {
     let app = spawn_app().await;
-    drop_database(&app.db_settings).await;
 
     let test_cases = vec![
         (
@@ -121,6 +120,8 @@ async fn newsletters_returns_400_for_invalid_data() {
             error_message
         );
     }
+
+    drop_database(&app.db_settings).await;
 }
 
 #[tokio::test]
