@@ -6,7 +6,7 @@ use actix_web::{
     web, HttpRequest, HttpResponse, ResponseError,
 };
 use anyhow::Context;
-use argon2::{Argon2, Params, PasswordHasher, PasswordHash, PasswordVerifier};
+use argon2::{Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier};
 use base64::Engine;
 use secrecy::{ExposeSecret, Secret};
 use sha3::Digest;
@@ -194,9 +194,9 @@ async fn validate_credentials(
     let (expected_password_hash, user_id) = match row {
         Some(row) => (row.password_hash, row.user_id),
         None => {
-            return Err(PublishError::AuthError(
-                anyhow::anyhow!("Unknown username.")
-            ))
+            return Err(PublishError::AuthError(anyhow::anyhow!(
+                "Unknown username."
+            )))
         }
     };
 
@@ -206,8 +206,8 @@ async fn validate_credentials(
 
     Argon2::default()
         .verify_password(
-            credentials.password.expose_secret().as_bytes(), 
-            &expected_password_hash
+            credentials.password.expose_secret().as_bytes(),
+            &expected_password_hash,
         )
         .context("Invalid password.")
         .map_err(PublishError::AuthError)?;
