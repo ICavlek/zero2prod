@@ -58,4 +58,11 @@ impl ResponseError for LoginError {
             LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
         }
     }
+
+    fn error_response(&self) -> HttpResponse {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
+        HttpResponse::SeeOther()
+            .insert_header((LOCATION, format!("/login?error={}", encoded_error)))
+            .finish()
+    }
 }
