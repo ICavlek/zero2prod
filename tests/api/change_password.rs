@@ -77,8 +77,8 @@ async fn current_password_must_be_valid() {
         }))
         .await;
 
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/password");
     let html_page = app.get_change_password_html().await;
-    assert!(html_page.contains("<p><i>The current password is incorrect.</i></p>"))
+    assert!(html_page.contains("<p><i>The current password is incorrect.</i></p>"));
+    drop_database(&app.db_settings).await;
 }
