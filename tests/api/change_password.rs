@@ -23,8 +23,8 @@ async fn you_must_be_logged_in_to_change_your_password() {
         }))
         .await;
 
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/login");
+    drop_database(&app.db_settings).await;
 }
 
 #[tokio::test]
@@ -47,8 +47,8 @@ async fn new_password_fields_must_match() {
         }))
         .await;
 
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/password");
+    drop_database(&app.db_settings).await;
 
     let html_page = app.get_change_password_html().await;
     assert!(html_page.contains(
