@@ -17,7 +17,6 @@ async fn logout_clears_session_state() {
         "password": &app.test_user.password,
     });
     let response = app.post_login(&login_body).await;
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/dashboard");
 
     let html_page = app.get_admin_dashboard_html().await;
@@ -31,4 +30,5 @@ async fn logout_clears_session_state() {
 
     let response = app.get_admin_dashboard().await;
     assert_is_redirect_to(&response, "/login");
+    drop_database(&app.db_settings).await;
 }
