@@ -106,7 +106,6 @@ async fn changing_password_works() {
     assert_is_redirect_to(&response, "/admin/password");
     let html_page = app.get_change_password_html().await;
 
-    drop_database(&app.db_settings).await;
     assert!(html_page.contains("<p><i>Your password has been changed.</i></p>"));
 
     let response = app.post_logout().await;
@@ -120,5 +119,6 @@ async fn changing_password_works() {
         "password": &new_password,
     });
     let response = app.post_login(&login_body).await;
+    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/dashboard");
 }
