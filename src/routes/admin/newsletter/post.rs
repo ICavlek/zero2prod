@@ -1,8 +1,13 @@
 use actix_web::{web, HttpResponse};
+use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::PgPool;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient, utils::{e500, see_other}};
+use crate::{
+    domain::SubscriberEmail,
+    email_client::EmailClient,
+    utils::{e500, see_other},
+};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -47,6 +52,7 @@ pub async fn publish_newsletter(
             }
         }
     }
+    FlashMessage::info("The newsletter issue has been published!").send();
     Ok(see_other("/admin/newsletters"))
 }
 
