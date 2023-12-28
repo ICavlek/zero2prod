@@ -2,7 +2,7 @@ use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use sqlx::PgPool;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient, utils::e500};
+use crate::{domain::SubscriberEmail, email_client::EmailClient, utils::{e500, see_other}};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -47,7 +47,7 @@ pub async fn publish_newsletter(
             }
         }
     }
-    Ok(HttpResponse::Ok().finish())
+    Ok(see_other("/admin/newsletters"))
 }
 
 struct ConfirmedSubscriber {
