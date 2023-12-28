@@ -32,6 +32,7 @@ pub async fn admin_dashboard(
     <p>Welcome {username}!</p>
     <p>Available actions:</p>
     <ol>
+        <li><a href="/">Home</a></li>
         <li><a href="/admin/password">Change password</a></li>
         <li><a href="/admin/newsletters">Publish newsletters</a></li>
         <li>
