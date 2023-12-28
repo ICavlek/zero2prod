@@ -3,7 +3,7 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::{drop_database, spawn_app, ConfirmationLinks, TestApp, assert_is_redirect_to};
+use crate::helpers::{assert_is_redirect_to, drop_database, spawn_app, ConfirmationLinks, TestApp};
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {

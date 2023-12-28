@@ -1,14 +1,8 @@
-use actix_web::{
-    web, HttpResponse,
-};
+use actix_web::{web, HttpResponse};
 use anyhow::Context;
 use sqlx::PgPool;
 
-use crate::{
-    domain::SubscriberEmail,
-    email_client::EmailClient,
-    utils::e500,
-};
+use crate::{domain::SubscriberEmail, email_client::EmailClient, utils::e500};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -17,10 +11,7 @@ pub struct FormData {
     html_content: String,
 }
 
-#[tracing::instrument(
-    name = "Publish a newsletter issue",
-    skip_all
-)]
+#[tracing::instrument(name = "Publish a newsletter issue", skip_all)]
 pub async fn publish_newsletter(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
