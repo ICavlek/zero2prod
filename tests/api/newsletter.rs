@@ -4,11 +4,19 @@ use wiremock::{
     Mock, ResponseTemplate,
 };
 
-use crate::helpers::{drop_database, spawn_app, ConfirmationLinks, TestApp};
+use crate::helpers::{drop_database, spawn_app, ConfirmationLinks, TestApp, assert_is_redirect_to};
 
 #[tokio::test]
 async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
     let app = spawn_app().await;
+
+    let login_body = serde_json::json!({
+        "username": &app.test_user.username,
+        "password": &app.test_user.password,
+    });
+    let response = app.post_login(&login_body).await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
     create_unconfirmed_subscriber(&app).await;
 
     Mock::given(any())
@@ -34,6 +42,14 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
 #[tokio::test]
 async fn newsletters_are_delivered_to_confirmed_subscribers() {
     let app = spawn_app().await;
+
+    let login_body = serde_json::json!({
+        "username": &app.test_user.username,
+        "password": &app.test_user.password,
+    });
+    let response = app.post_login(&login_body).await;
+    assert_is_redirect_to(&response, "/admin/dashboard");
+
     create_confirmed_subscriber(&app).await;
 
     Mock::given(any())
@@ -97,7 +113,7 @@ async fn you_must_be_logged_in_to_see_the_newsletter_form() {
     let app = spawn_app().await;
 
     let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
+        .post(&format!("{}/admin/newsletters", &app.address))
         .json(&serde_json::json!({
             "title": "Newsletter title",
             "content": {
@@ -125,7 +141,7 @@ async fn you_must_be_logged_in_to_publish_a_newsletter() {
     let password = Uuid::new_v4().to_string();
 
     let response = reqwest::Client::new()
-        .post(&format!("{}/newsletters", &app.address))
+        .post(&format!("{}/admin/newsletters", &app.address))
         .basic_auth(username, Some(password))
         .json(&serde_json::json!({
             "title": "Newsletter title",
