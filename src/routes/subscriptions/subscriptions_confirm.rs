@@ -1,5 +1,5 @@
 use crate::routes::error_chain_fmt;
-use actix_web::{web, HttpResponse, ResponseError};
+use actix_web::{http::header::ContentType, web, HttpResponse, ResponseError};
 use anyhow::Context;
 use reqwest::StatusCode;
 use sqlx::PgPool;
@@ -24,7 +24,14 @@ pub async fn confirm(
     confirm_subscriber(&pool, subscriber_id)
         .await
         .context("Failed to update the subscriber status to `confirmed`.")?;
-    Ok(HttpResponse::Ok().finish())
+    Ok(HttpResponse::Ok().content_type(ContentType::html()).body(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<body>
+    <p>Thank you for subscribing to our newsletter!</p>
+</body>
+</html>"#,
+    ))
 }
 
 #[tracing::instrument(name = "Get subscriber_id from token", skip(subscription_token, pool))]
