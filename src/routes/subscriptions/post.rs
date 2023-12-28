@@ -1,4 +1,5 @@
 use actix_web::{web, HttpResponse, ResponseError};
+use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use chrono::Utc;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
@@ -10,6 +11,7 @@ use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
     startup::ApplicationBaseUrl,
+    utils::see_other,
 };
 
 #[derive(serde::Deserialize)]
@@ -67,7 +69,8 @@ pub async fn subscribe(
     .await
     .context("Failed to send a confirmation email.")?;
 
-    Ok(HttpResponse::Ok().finish())
+    FlashMessage::info("Confirmation mail has been sent.").send();
+    Ok(see_other("/subscriptions"))
 }
 
 #[tracing::instrument(
