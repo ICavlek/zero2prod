@@ -1,4 +1,5 @@
 use super::IdempotencyKey;
+use actix_web::body::to_bytes;
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use sqlx::PgPool;
@@ -48,7 +49,25 @@ pub async fn save_response(
     _pool: &PgPool,
     _idempotency_key: &IdempotencyKey,
     _user_id: Uuid,
-    _http_response: &HttpResponse
-) -> Result<(), anyhow::Error> {
-    todo!()
+    http_response: HttpResponse,
+) -> Result<HttpResponse, anyhow::Error> {
+    let (response_head, body) = http_response.into_parts();
+    // `MessageBody::Error` is not `Send` + `Sync`,
+    // therefore it doesn't play nicely with `anyhow`
+    let body = to_bytes(body).await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    let _status_code = response_head.status().as_u16() as i16;
+    let _headers = {
+        let mut h = Vec::with_capacity(response_head.headers().len());
+        for (name, value) in response_head.headers().iter() {
+            let name = name.as_str().to_owned();
+            let value = value.as_bytes().to_owned();
+            h.push(HeaderPairRecord { name, value });
+        }
+        h
+    };
+    // TODO: SQL query
+    // We need `.map_into_boxed_body` to go from
+    // `HttpResponse<Bytes>` to `HttpResponse<BoxBody>`
+    let http_response = response_head.set_body(body).map_into_boxed_body();
+    Ok(http_response)
 }
