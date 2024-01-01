@@ -3,7 +3,7 @@ use actix_web::body::to_bytes;
 use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 use sqlx::postgres::PgHasArrayType;
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
 use uuid::Uuid;
 
 pub async fn get_saved_response(
@@ -53,7 +53,7 @@ impl PgHasArrayType for HeaderPairRecord {
 }
 
 pub async fn save_response(
-    pool: &PgPool,
+    mut transaction: Transaction<'static, Postgres>,
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
     http_response: HttpResponse,
@@ -72,25 +72,26 @@ pub async fn save_response(
         }
         h
     };
-    sqlx::query_unchecked!(
-        r#"
-        UPDATE idempotency
-        SET
-            response_status_code = $3,
-            response_headers = $4,
-            response_body = $5
-        WHERE
-            user_id = $1 AND
-            idempotency_key = $2
-        "#,
-        user_id,
-        idempotency_key.as_ref(),
-        status_code,
-        headers,
-        body.as_ref()
-    )
-    .execute(pool)
-    .await?;
+    transaction
+        .execute(sqlx::query_unchecked!(
+            r#"
+            UPDATE idempotency
+            SET
+                response_status_code = $3,
+                response_headers = $4,
+                response_body = $5
+            WHERE
+                user_id = $1 AND
+                idempotency_key = $2
+            "#,
+            user_id,
+            idempotency_key.as_ref(),
+            status_code,
+            headers,
+            body.as_ref()
+        ))
+        .await?;
+    transaction.commit().await?;
 
     // We need `.map_into_boxed_body` to go from
     // `HttpResponse<Bytes>` to `HttpResponse<BoxBody>`
@@ -98,8 +99,9 @@ pub async fn save_response(
     Ok(http_response)
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum NextAction {
-    StartProcessing,
+    StartProcessing(Transaction<'static, Postgres>),
     ReturnSavedResponse(HttpResponse),
 }
 
@@ -108,7 +110,8 @@ pub async fn try_processing(
     idempotency_key: &IdempotencyKey,
     user_id: Uuid,
 ) -> Result<NextAction, anyhow::Error> {
-    let n_inserted_rows = sqlx::query!(
+    let mut transaction = pool.begin().await?;
+    let query = sqlx::query!(
         r#"
         INSERT INTO idempotency (
             user_id, 
@@ -120,13 +123,11 @@ pub async fn try_processing(
         "#,
         user_id,
         idempotency_key.as_ref()
-    )
-    .execute(pool)
-    .await?
-    .rows_affected();
+    );
+    let n_inserted_rows = transaction.execute(query).await?.rows_affected();
 
     if n_inserted_rows > 0 {
-        Ok(NextAction::StartProcessing)
+        Ok(NextAction::StartProcessing(transaction))
     } else {
         let saved_response = get_saved_response(pool, idempotency_key, user_id)
             .await?
