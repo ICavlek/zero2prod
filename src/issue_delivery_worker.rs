@@ -5,6 +5,11 @@ use sqlx::{Executor, PgPool, Postgres, Transaction};
 use tracing::{field::display, Span};
 use uuid::Uuid;
 
+enum ExecutionOutcome {
+    TaskCompleted,
+    EmptyQueue,
+}
+
 #[tracing::instrument(
     skip_all,
     fields(
@@ -13,7 +18,14 @@ use uuid::Uuid;
     ),
     err
 )]
-async fn try_execute_task(pool: &PgPool, email_client: &EmailClient) -> Result<(), anyhow::Error> {
+async fn try_execute_task(
+    pool: &PgPool,
+    email_client: &EmailClient,
+) -> Result<ExecutionOutcome, anyhow::Error> {
+    let task = dequeue_task(pool).await?;
+    if task.is_none() {
+        return Ok(ExecutionOutcome::EmptyQueue);
+    }
     if let Some((transaction, issue_id, email)) = dequeue_task(pool).await? {
         Span::current()
             .record("newsletter_issue_id", &display(issue_id))
@@ -49,7 +61,7 @@ async fn try_execute_task(pool: &PgPool, email_client: &EmailClient) -> Result<(
         }
         delete_task(transaction, issue_id, &email).await?;
     }
-    Ok(())
+    Ok(ExecutionOutcome::TaskCompleted)
 }
 
 #[allow(dead_code)]
