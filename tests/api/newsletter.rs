@@ -32,8 +32,16 @@ async fn newsletters_are_not_delivered_to_unconfirmed_subscribers() {
 
     let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/newsletters");
+    // Act - Part 2 - Follow the redirect
+    let html_page = app.get_publish_newsletter_html().await;
+    assert!(html_page.contains(
+        "<p><i>The newsletter issue has been accepted - \
+        emails will go out shortly.</i></p>"
+    ));
+    app.dispatch_all_pending_emails().await;
+    drop_database(&app.db_settings).await;
+    // Mock verifies on Drop that we haven't sent the newsletter email
 }
 
 #[tokio::test]
@@ -57,8 +65,17 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
     let response = app.post_publish_newsletter(&newsletter_request_body).await;
 
-    drop_database(&app.db_settings).await;
     assert_is_redirect_to(&response, "/admin/newsletters");
+
+    // Act - Part 2 - Follow the redirect
+    let html_page = app.get_publish_newsletter_html().await;
+    assert!(html_page.contains(
+        "<p><i>The newsletter issue has been accepted - \
+        emails will go out shortly.</i></p>"
+    ));
+    app.dispatch_all_pending_emails().await;
+    drop_database(&app.db_settings).await;
+    // Mock verifies on Drop that we have sent the newsletter email
 }
 
 async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
@@ -133,6 +150,7 @@ async fn you_must_be_logged_in_to_publish_a_newsletter() {
 
 #[tokio::test]
 async fn newsletter_creation_is_idempotent() {
+    // Arrange
     let app = spawn_app().await;
     create_confirmed_subscriber(&app).await;
     app.test_user.login(&app).await;
@@ -158,15 +176,23 @@ async fn newsletter_creation_is_idempotent() {
 
     // Act - Part 2 - Follow the redirect
     let html_page = app.get_publish_newsletter_html().await;
-    assert!(html_page.contains("<p><i>The newsletter issue has been published!</i></p>"));
+    assert!(html_page.contains(
+        "<p><i>The newsletter issue has been accepted - \
+        emails will go out shortly.</i></p>"
+    ));
 
     // Act - Part 3 - Submit newsletter form **again**
     let response = app.post_publish_newsletter(&newsletter_request_body).await;
     assert_is_redirect_to(&response, "/admin/newsletters");
 
+    // Act - Part 4 - Follow the redirect
     let html_page = app.get_publish_newsletter_html().await;
-    assert!(html_page.contains("<p><i>The newsletter issue has been published!</i></p>"));
+    assert!(html_page.contains(
+        "<p><i>The newsletter issue has been accepted - \
+        emails will go out shortly.</i></p>"
+    ));
 
+    app.dispatch_all_pending_emails().await;
     drop_database(&app.db_settings).await;
     // Mock verifies on Drop that we have sent the newsletter email **once**
 }
@@ -198,11 +224,12 @@ async fn concurrent_form_submission_is_handled_gracefully() {
     let response2 = app.post_publish_newsletter(&newsletter_request_body);
     let (response1, response2) = tokio::join!(response1, response2);
 
-    drop_database(&app.db_settings).await;
     assert_eq!(response1.status(), response2.status());
     assert_eq!(
         response1.text().await.unwrap(),
         response2.text().await.unwrap()
     );
+    app.dispatch_all_pending_emails().await;
+    drop_database(&app.db_settings).await;
     // Mock verifies on Drop that we have sent the newsletter email **once**
 }

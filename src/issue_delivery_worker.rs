@@ -8,7 +8,7 @@ use sqlx::{Executor, PgPool, Postgres, Transaction};
 use tracing::{field::display, Span};
 use uuid::Uuid;
 
-enum ExecutionOutcome {
+pub enum ExecutionOutcome {
     TaskCompleted,
     EmptyQueue,
 }
@@ -21,7 +21,7 @@ enum ExecutionOutcome {
     ),
     err
 )]
-async fn try_execute_task(
+pub async fn try_execute_task(
     pool: &PgPool,
     email_client: &EmailClient,
 ) -> Result<ExecutionOutcome, anyhow::Error> {
@@ -29,41 +29,40 @@ async fn try_execute_task(
     if task.is_none() {
         return Ok(ExecutionOutcome::EmptyQueue);
     }
-    if let Some((transaction, issue_id, email)) = dequeue_task(pool).await? {
-        Span::current()
-            .record("newsletter_issue_id", &display(issue_id))
-            .record("subscriber_email", &display(&email));
-        match SubscriberEmail::parse(email.clone()) {
-            Ok(email) => {
-                let issue = get_issue(pool, issue_id).await?;
-                if let Err(e) = email_client
-                    .send_email(
-                        &email,
-                        &issue.title,
-                        &issue.html_content,
-                        &issue.text_content,
-                    )
-                    .await
-                {
-                    tracing::error!(
+    let (transaction, issue_id, email) = task.unwrap();
+    Span::current()
+        .record("newsletter_issue_id", &display(issue_id))
+        .record("subscriber_email", &display(&email));
+    match SubscriberEmail::parse(email.clone()) {
+        Ok(email) => {
+            let issue = get_issue(pool, issue_id).await?;
+            if let Err(e) = email_client
+                .send_email(
+                    &email,
+                    &issue.title,
+                    &issue.html_content,
+                    &issue.text_content,
+                )
+                .await
+            {
+                tracing::error!(
                     error.cause_chain = ?e,
                     error.message = %e,
                     "Failed to deliver issue to a confirmed subscriber. \
-                    Skipping.",
-                    );
-                }
-            }
-            Err(e) => {
-                tracing::error!(
-                error.cause_chain = ?e,
-                error.message = %e,
-                "Skipping a confirmed subscriber. \
-                Their stored contact details are invalid",
+                        Skipping.",
                 );
             }
         }
-        delete_task(transaction, issue_id, &email).await?;
+        Err(e) => {
+            tracing::error!(
+                error.cause_chain = ?e,
+                error.message = %e,
+                "Skipping a confirmed subscriber. \
+                    Their stored contact details are invalid",
+            );
+        }
     }
+    delete_task(transaction, issue_id, &email).await?;
     Ok(ExecutionOutcome::TaskCompleted)
 }
 
@@ -155,16 +154,6 @@ async fn worker_loop(pool: PgPool, email_client: EmailClient) -> Result<(), anyh
 
 pub async fn run_worker_until_stopped(configuration: Settings) -> Result<(), anyhow::Error> {
     let connection_pool = get_connection_pool(&configuration.database);
-    let sender_email = configuration
-        .email_client
-        .sender()
-        .expect("Invalid sender email address.");
-    let timeout = configuration.email_client.timeout();
-    let email_client = EmailClient::new(
-        configuration.email_client.base_url,
-        sender_email,
-        configuration.email_client.authorization_token,
-        timeout,
-    );
+    let email_client = configuration.email_client.client();
     worker_loop(connection_pool, email_client).await
 }
