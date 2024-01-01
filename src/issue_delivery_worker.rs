@@ -67,7 +67,6 @@ async fn try_execute_task(
     Ok(ExecutionOutcome::TaskCompleted)
 }
 
-#[allow(dead_code)]
 type PgTransaction = Transaction<'static, Postgres>;
 
 #[tracing::instrument(skip_all)]
@@ -117,7 +116,6 @@ async fn delete_task(
     Ok(())
 }
 
-#[allow(dead_code)]
 struct NewsletterIssue {
     title: String,
     text_content: String,
@@ -141,7 +139,6 @@ async fn get_issue(pool: &PgPool, issue_id: Uuid) -> Result<NewsletterIssue, any
     Ok(issue)
 }
 
-#[allow(dead_code)]
 async fn worker_loop(pool: PgPool, email_client: EmailClient) -> Result<(), anyhow::Error> {
     loop {
         match try_execute_task(&pool, &email_client).await {
